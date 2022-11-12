@@ -55,11 +55,7 @@ const data = [
 
 const database = SQLite.openDatabase('database');
 
-function feedDatabase() {
-    database.exec([{ sql: 'PRAGMA foreign_keys = ON', args: [] }], false, () => {
-        console.log('Foreign keys turned on')
-    });
-    
+function feedDatabase() {  
     database.transaction(transaction => {
         data.forEach(sqlStatement => {
             transaction.executeSql(sqlStatement, [], () => {}, (_, sqlStatementError) => {

@@ -106,7 +106,7 @@ export default class ProductList extends React.Component<any, any> {
                                 onPress={() => this.props.navigation.navigate('ProductCreate')}   
                             />}
                             <ProductListRow
-                                id={item.id}
+                                productId={item.id}
                                 mediaSource={item.mediaSource}
                                 title={item.title}
                                 price={item.price}

@@ -3,13 +3,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProductCreate from './ProductCreate';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import Home from './Home';
-import buildDatabase from './database/build';
-import feedDatabase from './database/feed';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {   
-
+export default function App() {
+    
     return (
         <ActionSheetProvider>
             <NavigationContainer>

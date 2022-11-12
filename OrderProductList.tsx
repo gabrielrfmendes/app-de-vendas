@@ -2,8 +2,17 @@ import React from 'react';
 import { FlatList } from 'react-native';
 import ProductListRow from './ProductListRow';
 import * as SQLite from 'expo-sqlite';
+import styled from 'styled-components/native';
+import FeatherIcon from '@expo/vector-icons/Feather';
 
 const database = SQLite.openDatabase('database');
+
+const AddProduct = styled.Pressable`
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+`;
 
 export default class ProductList extends React.Component<any, any> {
     componentDidMount() {
@@ -62,19 +71,30 @@ export default class ProductList extends React.Component<any, any> {
     
     render() {
         return (
-            <FlatList
-                data={this.state?.products}
-                renderItem={({ item }) => (
-                    <ProductListRow 
-                        id={item.id}
-                        mediaSource={item.mediaSorce}
-                        title={item.title}
-                        price={item.price}
-                        quantity={item.quantity}
+            <>
+                {!this.state?.products.length ? (
+                    <AddProduct 
+                        android_ripple={{ borderless: true }} 
+                        onPress={() => this.props.navigation.navigate('ProductList')}
+                    >
+                        <FeatherIcon name='plus-circle' color='#c8c6c6' size={200} />
+                    </AddProduct>
+                ) : (
+                    <FlatList
+                        data={this.state.products}
+                        renderItem={({ item }) => (
+                            <ProductListRow 
+                                productId={item.id}
+                                mediaSource={item.mediaSorce}
+                                title={item.title}
+                                price={item.price}
+                                quantity={item.quantity}
+                            />
+                        )}
+                        keyExtractor={(_, index) => String(index + 1)}
                     />
-                )}
-                keyExtractor={(_, index) => String(index + 1)}
-            />
+                )} 
+            </>
         )
     }
 }

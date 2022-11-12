@@ -1,8 +1,8 @@
 import ListRow from './ListRow';
 import styled from 'styled-components/native';
+import formatMonetaryValue from './formatMonetaryValue';
 import FeatherIcon from '@expo/vector-icons/Feather';
-import { Pressable } from 'react-native';
-import { useState } from 'react';
+import { Pressable, Alert } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
 const database = SQLite.openDatabase('database');
@@ -22,7 +22,7 @@ const ProductMediaSource = styled.Image`
 `;
 const QuantitySelectorContainer = styled.View`
     position: absolute;
-    right: 10px;
+    right: 15px;
     bottom: 5px;
     height: 30px;
     flex-direction: row;
@@ -30,36 +30,13 @@ const QuantitySelectorContainer = styled.View`
 `;
 const QuantitySelectorInput = styled.TextInput`
     height: 100%;
-    width: 45px;
+    width: 50px;
     font-size: 18px;
     text-align: center;
 `;
 
-function formatMonetaryValue(amount: number) {
-    let formattedAmount = String(amount);
-    
-    if (formattedAmount.indexOf('.') !== -1) {
-        let [reais, cents] = String(formattedAmount).split('.');
-
-        reais = reais
-            .replace(/^(0+)(\d)/g, '$2')
-            .replace(/(\d)(?=(\d{3})+(\.(\d){0,2})*$)/g, '$1.');
-
-        if (cents.length === 1) {
-            cents = `${cents}0`
-        }
-
-        return `R$ ${reais},${cents}`
-    }
-    formattedAmount = formattedAmount
-        .replace(/^(0+)(\d)/g, '$2')
-        .replace(/(\d)(?=(\d{3})+(\.(\d){0,2})*$)/g, '$1.');
-    
-    return `R$ ${formattedAmount},00`
-}
-
 type ProductListRowProps = {
-    id: number;
+    productId: number;
     mediaSource?: string;
     title: string;
     price: number;
@@ -67,39 +44,76 @@ type ProductListRowProps = {
 };
 
 export default function ProductListRow(props: ProductListRowProps) {
-    const [productUnits, setProductUnits] = useState(props.quantity? props.quantity : 0)
-
     function addUnit() {
         database.transaction(transaction => {
-            transaction.executeSql(`
-                UPDATE OrderProducts SET 
-                    quantity = ${productUnits + 1}
-                WHERE OrderProducts.orderId = (SELECT id FROM Orders WHERE status = 'open')
-                AND OrderProducts.productId = ${props.id};
-            `, [], (_, { rowsAffected }) => {
-                console.log('Funcio' + rowsAffected)
-                setProductUnits(productUnits + 1)
-            }, (_, sqlStatementError) => {
-                throw Error(sqlStatementError.message)
-            })
+            if (!props.quantity) {
+                transaction.executeSql(`
+                    INSERT INTO OrderProducts (
+                        orderId,
+                        productId,
+                        price,
+                        quantity
+                    ) VALUES (
+                        (SELECT id FROM Orders WHERE status = 'open'),
+                        ${props.productId},
+                        ${props.price},
+                        ${1}
+                    )
+                `, [], () => {}, (_, sqlStatementError) => {
+                    throw Error(sqlStatementError.message)
+                })
+            } else {
+                transaction.executeSql(`
+                    UPDATE OrderProducts SET 
+                        quantity = ${props.quantity + 1}
+                    WHERE OrderProducts.orderId = (SELECT id FROM Orders WHERE status = 'open')
+                    AND OrderProducts.productId = ${props.productId};
+                `, [], () => {}, (_, sqlStatementError) => {
+                    throw Error(sqlStatementError.message)
+                })
+            }
         }, transactionError => {
            throw Error(transactionError.message)
-        })
+        });
     }
 
     function removeUnit() {
         database.transaction(transaction => {
-            transaction.executeSql(`
-                UPDATE OrderProducts SET 
-                    quantity = ${productUnits - 1}
-                WHERE OrderProducts.orderId = 1
-                AND OrderProducts.productId = ${props.id};
-            `, [], (_, { rowsAffected }) => {
-                console.log('Funcio' + rowsAffected)
-                setProductUnits(productUnits - 1)
-            }, (_, sqlStatementError) => {
-                throw Error(sqlStatementError.message)
-            })
+            if (props.quantity === 1) {
+                Alert.alert(
+                    'Remover produto',
+                    'Deseja remover este produto do pedido?',
+                    [
+                        {
+                            text: 'Não',
+                            style: 'cancel'
+                        },
+                        { 
+                            text: 'Sim', 
+                            onPress: () => {
+                                database.transaction(transaction => {
+                                    transaction.executeSql(`
+                                        DELETE FROM OrderProducts 
+                                        WHERE productId = ${props.productId}
+                                        AND orderId = (SELECT id FROM Orders WHERE status = 'open')
+                                    `, [], () => {}, (_, sqlStatementError) => {
+                                        throw Error(sqlStatementError.message)
+                                    })
+                                })
+                            }
+                        }
+                    ]
+                )
+            } else {
+                transaction.executeSql(`
+                    UPDATE OrderProducts SET 
+                        quantity = ${props.quantity - 1}
+                    WHERE OrderProducts.orderId = (SELECT id FROM Orders WHERE status = 'open')
+                    AND OrderProducts.productId = ${props.productId};
+                `, [], () => {}, (_, sqlStatementError) => {
+                    throw Error(sqlStatementError.message)
+                })
+            }
         }, transactionError => {
            throw Error(transactionError.message)
         })
@@ -122,21 +136,21 @@ export default function ProductListRow(props: ProductListRowProps) {
             />
             <QuantitySelectorContainer>
                 <Pressable 
-                    android_ripple={{ borderless: true, radius: 20 }}
+                    android_ripple={{ borderless: true, radius: 30 }}
                     onPress={removeUnit}
                 >
-                    <FeatherIcon name='minus-circle' size={24} color='#34a853' />
+                    <FeatherIcon name='minus-circle' size={28} color='#34a853' />
                 </Pressable>
                 <QuantitySelectorInput
-                    value={String(productUnits)}
+                    value={String(props.quantity || 0)}
                     keyboardType='number-pad'
-                    selectionColor='#5848FF'
+                    selectionColor='#34a853'
                 />
                 <Pressable 
-                    android_ripple={{ borderless: true, radius: 20 }}
+                    android_ripple={{ borderless: true, radius: 30 }}
                     onPress={addUnit}
                 >
-                    <FeatherIcon name='plus-circle' size={24} color='#34a853' />
+                    <FeatherIcon name='plus-circle' size={28} color='#34a853' />
                 </Pressable>
             </QuantitySelectorContainer>
         </>
